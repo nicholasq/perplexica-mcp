@@ -268,11 +268,13 @@ impl PerplexicaService {
             + 100; // Header/footer overhead
         let mut markdown = String::with_capacity(estimated_capacity);
 
-        if let Err(_) = writeln!(
+        if writeln!(
             markdown,
             "## Summary\n\n{}\n\n## Sources\n\n",
             search_response.message
-        ) {
+        )
+        .is_err()
+        {
             return Err(McpError {
                 code: ErrorCode(-32603),
                 message: Cow::from("Failed to format markdown response"),
@@ -284,11 +286,13 @@ impl PerplexicaService {
             markdown.push_str("No sources found.\n");
         } else {
             for source in &search_response.sources {
-                if let Err(_) = writeln!(
+                if writeln!(
                     markdown,
                     "- {}\n  - {}\n",
                     source.metadata.title, source.metadata.url
-                ) {
+                )
+                .is_err()
+                {
                     return Err(McpError {
                         code: ErrorCode(-32603),
                         message: Cow::from("Failed to format markdown response"),
@@ -398,7 +402,6 @@ impl ServerHandler for PerplexicaService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_deserialize_search_response() {
@@ -495,7 +498,7 @@ mod tests {
 
         assert_eq!(request.query, "What is AI?");
         assert_eq!(request.focus_mode, "webSearch");
-        assert_eq!(request.stream, false);
+        assert!(!request.stream);
         assert_eq!(request.history.unwrap().len(), 2);
         assert_eq!(request.system_instructions.unwrap(), "Be helpful");
         assert_eq!(request.provider_id.unwrap(), "test-provider");
@@ -517,8 +520,8 @@ mod tests {
         let request: PerplexicaSearchRequest = serde_json::from_str(json_data).unwrap();
 
         assert_eq!(request.query, "Test query");
-        assert_eq!(request.focus_mode, "webSearch"); // default value
-        assert_eq!(request.stream, false); // default value
+        assert_eq!(request.focus_mode, "webSearch");
+        assert!(!request.stream);
         assert!(request.history.is_none());
         assert!(request.system_instructions.is_none());
         assert!(request.provider_id.is_none());
@@ -564,7 +567,7 @@ mod tests {
                 markdown.push_str(&source.metadata.title);
                 markdown.push_str("\n  - ");
                 markdown.push_str(&source.metadata.url);
-                markdown.push_str("\n");
+                markdown.push('\n');
             }
         }
 
@@ -606,7 +609,7 @@ This is a test search response with citations [1][2].
                 markdown.push_str(&source.metadata.title);
                 markdown.push_str("\n  - ");
                 markdown.push_str(&source.metadata.url);
-                markdown.push_str("\n");
+                markdown.push('\n');
             }
         }
 
